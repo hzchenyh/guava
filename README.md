@@ -135,19 +135,19 @@ flavor.
 
 ## Guava学习笔记目录
 
-[Guava学习笔记：Google Guava 类库简介](https://www.cnblogs.com/peida/archive/2013/06/08/3120820.html).
-[Guava学习笔记：Optional优雅的使用null](https://www.cnblogs.com/peida/archive/2013/06/14/Guava_Optional.html).
-[Guava学习笔记：Preconditions优雅的检验参数](https://www.cnblogs.com/peida/p/Guava_Preconditions.html).
-[Guava学习笔记：复写的Object常用方法](https://www.cnblogs.com/peida/p/Guava_Objects.html).
-[Guava学习笔记：简化异常处理的Throwables类](https://www.cnblogs.com/peida/p/Guava_Throwables.html).
-[Guava学习笔记：Immutable(不可变)集合](https://www.cnblogs.com/peida/p/Guava_ImmutableCollections.html).
-[Guava学习笔记：Guava新增集合类型-Multiset](https://www.cnblogs.com/peida/p/Guava_Multiset.html).
-[Guava学习笔记：Guava新增集合类型-Multimap](https://www.cnblogs.com/peida/p/Guava_Multimap.html).
-[Guava学习笔记：Guava新增集合类型-Bimap](https://www.cnblogs.com/peida/p/Guava_Bimap.html).
-[Guava学习笔记：Guava新集合-Table等](https://www.cnblogs.com/peida/p/3183505.html).
-[Guava学习笔记：Guava cache](http://www.cnblogs.com/peida/p/Guava_Cache.html).
-[Guava学习笔记：EventBus](http://www.cnblogs.com/peida/p/EventBus.html).
-[Guava学习笔记：Range](http://www.cnblogs.com/peida/p/Guava_Range.html).
+-   [Guava学习笔记：Google Guava 类库简介](https://www.cnblogs.com/peida/archive/2013/06/08/3120820.html).
+-   [Guava学习笔记：Optional优雅的使用null](https://www.cnblogs.com/peida/archive/2013/06/14/Guava_Optional.html).
+-   [Guava学习笔记：Preconditions优雅的检验参数](https://www.cnblogs.com/peida/p/Guava_Preconditions.html).
+-   [Guava学习笔记：复写的Object常用方法](https://www.cnblogs.com/peida/p/Guava_Objects.html).
+-   [Guava学习笔记：简化异常处理的Throwables类](https://www.cnblogs.com/peida/p/Guava_Throwables.html).
+-   [Guava学习笔记：Immutable(不可变)集合](https://www.cnblogs.com/peida/p/Guava_ImmutableCollections.html).
+-   [Guava学习笔记：Guava新增集合类型-Multiset](https://www.cnblogs.com/peida/p/Guava_Multiset.html).
+-   [Guava学习笔记：Guava新增集合类型-Multimap](https://www.cnblogs.com/peida/p/Guava_Multimap.html).
+-   [Guava学习笔记：Guava新增集合类型-Bimap](https://www.cnblogs.com/peida/p/Guava_Bimap.html).
+-   [Guava学习笔记：Guava新集合-Table等](https://www.cnblogs.com/peida/p/3183505.html).
+-   [Guava学习笔记：Guava cache](http://www.cnblogs.com/peida/p/Guava_Cache.html).
+-   [Guava学习笔记：EventBus](http://www.cnblogs.com/peida/p/EventBus.html).
+-   [Guava学习笔记：Range](http://www.cnblogs.com/peida/p/Guava_Range.html).
 
 
 
