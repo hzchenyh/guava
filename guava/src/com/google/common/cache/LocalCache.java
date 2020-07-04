@@ -1734,6 +1734,7 @@ class LocalCache<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V> 
   // expiration
 
   /** Returns true if the entry has expired. */
+  /** 先判断访问过期，再判断写入过期 */
   boolean isExpired(ReferenceEntry<K, V> entry, long now) {
     checkNotNull(entry);
     if (expiresAfterAccess() && (now - entry.getAccessTime() >= expireAfterAccessNanos)) {
@@ -2002,26 +2003,38 @@ class LocalCache<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V> 
       checkNotNull(key);
       checkNotNull(loader);
       try {
+        // count保存的是该segment中缓存的数量，如果未0 则直接去load
         if (count != 0) { // read-volatile
           // don't call getLiveEntry, which would ignore loading values
           ReferenceEntry<K, V> e = getEntry(key, hash);
+          //e != null说明缓存中已存在
           if (e != null) {
             long now = map.ticker.read();
+
+            /**
+             * getLiveValue在entry无效、过期、正在载入都会返回null，如果返回不为空，就是正常命中
+             * 主要看是否存活
+             */
             V value = getLiveValue(e, now);
             if (value != null) {
               recordRead(e, now);
+              //性能统计
               statsCounter.recordHits(1);
+              //根据用户是否设置距离上次访问或者写入一段时间会过期，进行刷新或者直接返回
               return scheduleRefresh(e, key, hash, value, now, loader);
             }
             ValueReference<K, V> valueReference = e.getValueReference();
             if (valueReference.isLoading()) {
+              //如果正在加载中，等待加载完成获取
               return waitForLoadingValue(e, key, valueReference);
             }
           }
         }
 
         // at this point e is either null or expired;
+        // 如果不存在或者过期，就通过loader方法进行加载
         return lockedGetOrLoad(key, hash, loader);
+
       } catch (ExecutionException ee) {
         Throwable cause = ee.getCause();
         if (cause instanceof Error) {
@@ -2031,6 +2044,7 @@ class LocalCache<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V> 
         }
         throw ee;
       } finally {
+        // 在读的时候进行清理操作，具体清理逻辑详见方法内部  大致是连续读取64次就会执行一次清理操作
         postReadCleanup();
       }
     }
@@ -2071,21 +2085,26 @@ class LocalCache<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V> 
         preWriteCleanup(now);
 
         int newCount = this.count - 1;
+        // 当前segment下的hashtable
         AtomicReferenceArray<ReferenceEntry<K, V>> table = this.table;
         int index = hash & (table.length() - 1);
         ReferenceEntry<K, V> first = table.get(index);
 
+        // 在链表上进行查找
         for (e = first; e != null; e = e.getNext()) {
           K entryKey = e.getKey();
           if (e.getHash() == hash
               && entryKey != null
               && map.keyEquivalence.equivalent(key, entryKey)) {
             valueReference = e.getValueReference();
+
+            // 如果正在载入，则不需要创建
             if (valueReference.isLoading()) {
               createNewEntry = false;
             } else {
               V value = valueReference.get();
               if (value == null) {
+                // 被gc回收
                 enqueueNotification(
                     entryKey, hash, value, valueReference.getWeight(), RemovalCause.COLLECTED);
               } else if (map.isExpired(e, now)) {
@@ -2094,6 +2113,7 @@ class LocalCache<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V> 
                 enqueueNotification(
                     entryKey, hash, value, valueReference.getWeight(), RemovalCause.EXPIRED);
               } else {
+                // 存在并且没有过期，更新访问队列并记录命中信息
                 recordLockedRead(e, now);
                 statsCounter.recordHits(1);
                 // we were concurrent with loading; don't consider refresh
@@ -2101,6 +2121,7 @@ class LocalCache<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V> 
               }
 
               // immediately reuse invalid entries
+              /** 对于被gc回收的和过期的，从writeQueue和accessQueue中移除 */
               writeQueue.remove(e);
               accessQueue.remove(e);
               this.count = newCount; // write-volatile
@@ -2110,6 +2131,7 @@ class LocalCache<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V> 
         }
 
         if (createNewEntry) {
+          // 先创建一个loadingValueReference，表示正在载入
           loadingValueReference = new LoadingValueReference<>();
 
           if (e == null) {
@@ -2314,7 +2336,9 @@ class LocalCache<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V> 
       if (map.refreshes()
           && (now - entry.getWriteTime() > map.refreshNanos)
           && !entry.getValueReference().isLoading()) {
+
         V newValue = refresh(key, hash, loader, true);
+
         if (newValue != null) {
           return newValue;
         }
@@ -2650,6 +2674,7 @@ class LocalCache<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V> 
           continue;
         }
 
+        // hash值相同的，接下来找key值也相同的ReferenceEntry
         K entryKey = e.getKey();
         if (entryKey == null) {
           tryDrainReferenceQueues();
@@ -3134,6 +3159,7 @@ class LocalCache<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V> 
                 enqueueNotification(key, hash, entryValue, oldValueReference.getWeight(), cause);
                 newCount--;
               }
+              // LoadingValueReference变成对应的ValueReference，并进行赋值
               setValue(e, key, newValue, now);
               this.count = newCount; // write-volatile
               evictEntries(e);
@@ -3397,6 +3423,7 @@ class LocalCache<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V> 
      * is not observed after a sufficient number of reads, try cleaning up from the read thread.
      */
     void postReadCleanup() {
+      // 连续读取64次就会执行一次清理操作
       if ((readCount.incrementAndGet() & DRAIN_THRESHOLD) == 0) {
         cleanUp();
       }
@@ -3505,6 +3532,7 @@ class LocalCache<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V> 
         stopwatch.start();
         V previousValue = oldValue.get();
         if (previousValue == null) {
+          /** 调用服务加载数据 */
           V newValue = loader.load(key);
           return set(newValue) ? futureValue : Futures.immediateFuture(newValue);
         }
@@ -3925,6 +3953,15 @@ class LocalCache<K, V> extends AbstractMap<K, V> implements ConcurrentMap<K, V> 
     return segmentFor(hash).get(key, hash);
   }
 
+  /**
+   * 1、寻找对应的segment
+   * 2、寻找对应table中的元素
+   *
+   * @param key
+   * @param loader
+   * @return
+   * @throws ExecutionException
+   */
   V get(K key, CacheLoader<? super K, V> loader) throws ExecutionException {
     int hash = hash(checkNotNull(key));
     return segmentFor(hash).get(key, hash, loader);
